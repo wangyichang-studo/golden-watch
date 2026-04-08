@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, PanResponder, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, PanResponder, Dimensions, ActivityIndicator } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { mockArtGalleryImages } from '../services/mockData';
 import { WatchFaceConfig } from '../types';
@@ -7,9 +7,11 @@ import { WatchFaceConfig } from '../types';
 interface WatchFaceConfigScreenProps {
   onSave: (config: WatchFaceConfig) => void;
   onCancel: () => void;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
-const WatchFaceConfigScreen: React.FC<WatchFaceConfigScreenProps> = ({ onSave, onCancel }) => {
+const WatchFaceConfigScreen: React.FC<WatchFaceConfigScreenProps> = ({ onSave, onCancel, isLoading = false, error = null }) => {
   const [selectedBackground, setSelectedBackground] = useState<string>(mockArtGalleryImages[0]);
   const [pricePosition, setPricePosition] = useState<'top-left' | 'top-right' | 'center' | 'bottom-left' | 'bottom-right'>('center');
   const [selectedMetal, setSelectedMetal] = useState<'gold' | 'silver'>('gold');
@@ -84,10 +86,20 @@ const WatchFaceConfigScreen: React.FC<WatchFaceConfigScreenProps> = ({ onSave, o
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>表盘配置</Text>
-        <TouchableOpacity onPress={handleSave}>
-          <Text style={styles.saveButton}>✓</Text>
+        <TouchableOpacity onPress={handleSave} disabled={isLoading}>
+          {isLoading ? (
+            <ActivityIndicator color="#D4AF37" />
+          ) : (
+            <Text style={styles.saveButton}>✓</Text>
+          )}
         </TouchableOpacity>
       </View>
+      
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
 
       {/* 预览区域 */}
       <View style={styles.previewContainer}>
@@ -571,6 +583,19 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     fontSize: 14,
     fontWeight: '600',
+  },
+  errorContainer: {
+    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#E74C3C',
+    padding: 12,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 4,
+  },
+  errorText: {
+    color: '#E74C3C',
+    fontSize: 14,
   },
 });
 

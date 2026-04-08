@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { getMockMetalData } from '../services/mockData';
 import { MetalData, PriceUnit } from '../types';
 
@@ -43,6 +43,7 @@ const MetalListScreen: React.FC<MetalListScreenProps> = ({ onAddMetal, onEditMet
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#D4AF37" />
         <Text style={styles.loadingText}>加载中...</Text>
       </View>
     );

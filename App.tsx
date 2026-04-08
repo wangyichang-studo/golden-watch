@@ -1,37 +1,61 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
+import { AppProvider, useAppContext } from './src/context/AppContext';
 import WatchFaceConfigScreen from './src/screens/WatchFaceConfigScreen';
 import MetalListScreen from './src/screens/MetalListScreen';
 import DisclaimerModal from './src/components/DisclaimerModal';
 import DataUpdateInfo from './src/components/DataUpdateInfo';
+import BottomNavigation from './src/components/BottomNavigation';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import { storageService } from './src/services/storageService';
 import { WatchFaceConfig } from './src/types';
 
 const Stack = createStackNavigator();
 
-export default function App() {
-  const [showDisclaimer, setShowDisclaimer] = useState<boolean>(true);
-  const [showDataUpdateInfo, setShowDataUpdateInfo] = useState<boolean>(false);
-  const [watchFaces, setWatchFaces] = useState<WatchFaceConfig[]>([]);
-  const [selectedTab, setSelectedTab] = useState<'watchface' | 'metals'>('watchface');
+function AppContent() {
+  const { state, dispatch } = useAppContext();
 
-  // 模拟首次启动，实际应用中应使用AsyncStorage存储
   useEffect(() => {
-    // 这里可以检查用户是否已经同意过免责声明
-    // 例如：const hasAgreed = await AsyncStorage.getItem('hasAgreedToDisclaimer');
-    // setShowDisclaimer(!hasAgreed);
+    // 初始化应用
+    initializeApp();
   }, []);
 
-  const handleAgreeToDisclaimer = () => {
-    setShowDisclaimer(false);
-    // 实际应用中应存储用户同意状态
-    // await AsyncStorage.setItem('hasAgreedToDisclaimer', 'true');
+  const initializeApp = async () => {
+    try {
+      // 检查用户是否已同意免责声明
+      const hasAgreed = await storageService.hasAgreedToDisclaimer();
+      if (hasAgreed) {
+        dispatch({ type: 'AGREE_TO_DISCLAIMER' });
+      }
+    } catch (error) {
+      console.error('Error initializing app:', error);
+    }
   };
 
-  const handleSaveWatchFace = (config: WatchFaceConfig) => {
-    setWatchFaces([...watchFaces, config]);
-    Alert.alert('成功', '表盘配置已保存');
+  const handleAgreeToDisclaimer = async () => {
+    try {
+      dispatch({ type: 'AGREE_TO_DISCLAIMER' });
+      await storageService.setAgreedToDisclaimer(true);
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: '保存设置失败' });
+    }
+  };
+
+  const handleSaveWatchFace = async (config: WatchFaceConfig) => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      await storageService.saveWatchFace(config);
+      dispatch({ type: 'ADD_WATCH_FACE', payload: config });
+      dispatch({ type: 'SET_ERROR', payload: null });
+      Alert.alert('成功', '表盘配置已保存');
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: '保存表盘失败' });
+      Alert.alert('错误', '保存表盘失败，请重试');
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
   };
 
   const handleAddMetal = () => {
@@ -44,8 +68,14 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <DisclaimerModal visible={showDisclaimer} onAgree={handleAgreeToDisclaimer} />
-      <DataUpdateInfo visible={showDataUpdateInfo} onClose={() => setShowDataUpdateInfo(false)} />
+      <DisclaimerModal 
+        visible={state.showDisclaimer} 
+        onAgree={handleAgreeToDisclaimer} 
+      />
+      <DataUpdateInfo 
+        visible={state.showDataUpdateInfo} 
+        onClose={() => dispatch({ type: 'SET_SHOW_DATA_UPDATE_INFO', payload: false })} 
+      />
       <View style={styles.container}>
         <Stack.Navigator
           screenOptions={{
@@ -55,12 +85,13 @@ export default function App() {
           <Stack.Screen name="Main">
             {() => (
               <View style={styles.mainContainer}>
-                {/* 内容区域 */}
                 <View style={styles.content}>
-                  {selectedTab === 'watchface' ? (
+                  {state.selectedTab === 'watchface' ? (
                     <WatchFaceConfigScreen 
-                      onSave={handleSaveWatchFace} 
+                      onSave={handleSaveWatchFace}
                       onCancel={() => {}}
+                      isLoading={state.isLoading}
+                      error={state.error}
                     />
                   ) : (
                     <MetalListScreen 
@@ -70,53 +101,27 @@ export default function App() {
                   )}
                 </View>
                 
-                {/* 底部导航 */}
-                <View style={styles.bottomNav}>
-                  <TouchableOpacity
-                    style={[
-                      styles.navItem,
-                      selectedTab === 'watchface' && styles.selectedNavItem
-                    ]}
-                    onPress={() => setSelectedTab('watchface')}
-                  >
-                    <Text
-                      style={[
-                        styles.navItemText,
-                        selectedTab === 'watchface' && styles.selectedNavItemText
-                      ]}
-                    >
-                      表盘
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.navItem,
-                      selectedTab === 'metals' && styles.selectedNavItem
-                    ]}
-                    onPress={() => setSelectedTab('metals')}
-                  >
-                    <Text
-                      style={[
-                        styles.navItemText,
-                        selectedTab === 'metals' && styles.selectedNavItemText
-                      ]}
-                    >
-                      贵金属
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.navItem}
-                    onPress={() => setShowDataUpdateInfo(true)}
-                  >
-                    <Text style={styles.navItemText}>信息</Text>
-                  </TouchableOpacity>
-                </View>
+                <BottomNavigation
+                  selectedTab={state.selectedTab}
+                  onTabChange={(tab) => dispatch({ type: 'SET_SELECTED_TAB', payload: tab })}
+                  onInfoPress={() => dispatch({ type: 'SET_SHOW_DATA_UPDATE_INFO', payload: true })}
+                />
               </View>
             )}
           </Stack.Screen>
         </Stack.Navigator>
       </View>
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -130,29 +135,5 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    backgroundColor: '#2A2A2A',
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#333333',
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  selectedNavItem: {
-    borderTopWidth: 2,
-    borderTopColor: '#D4AF37',
-  },
-  navItemText: {
-    color: '#E0E0E0',
-    fontSize: 14,
-  },
-  selectedNavItemText: {
-    color: '#D4AF37',
-    fontWeight: '600',
   },
 });
