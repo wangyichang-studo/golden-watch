@@ -50,7 +50,7 @@ const MetalListScreen: React.FC<MetalListScreenProps> = ({ onAddMetal, onEditMet
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.title}>关注列表</Text>
         <TouchableOpacity onPress={onAddMetal}>
@@ -95,7 +95,7 @@ const MetalListScreen: React.FC<MetalListScreenProps> = ({ onAddMetal, onEditMet
       </View>
 
       {/* 贵金属列表 */}
-      <ScrollView style={styles.listContainer}>
+      <View style={styles.listContainer}>
         {(['gold', 'silver'] as const).map((metal) => {
           const metalData = getMetalDataByUnit(metal);
           if (!metalData) return null;
@@ -125,13 +125,13 @@ const MetalListScreen: React.FC<MetalListScreenProps> = ({ onAddMetal, onEditMet
             </View>
           );
         })}
-      </ScrollView>
+      </View>
 
       {/* 编辑按钮 */}
       <TouchableOpacity style={styles.editButton} onPress={onEditMetals}>
         <Text style={styles.editButtonText}>编辑</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -193,7 +193,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   listContainer: {
-    flex: 1,
     paddingHorizontal: 20,
   },
   metalItem: {
